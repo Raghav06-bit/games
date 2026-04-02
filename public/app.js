@@ -414,10 +414,10 @@ function handleWin(winner, line) {
   updateScoreUI();
 
   if (winner === 'X') {
-    resultText.innerText = 'X Wins!';
+    resultText.innerText = `${nameX.innerText} Wins!`;
     resultText.className = 'result-text x-win';
   } else if (winner === 'O') {
-    resultText.innerText = 'O Wins!';
+    resultText.innerText = `${nameO.innerText} Wins!`;
     resultText.className = 'result-text o-win';
   } else {
     resultText.innerText = 'Draw!';

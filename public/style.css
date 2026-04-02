@@ -425,7 +425,8 @@ input {
 .o-color { color: var(--neon-magenta); text-shadow: var(--glow-magenta); }
 
 .indicator-name {
-  font-size: 0.8rem;
+  font-size: 1.1rem;
+  font-weight: 500;
   color: var(--text-muted);
   margin-top: 5px;
 }
