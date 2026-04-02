@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Play Tic-Tac-Toe online with friends or challenge the AI. Create a private room and share the code!" />
+  <title>X O — Play Tic-Tac-Toe Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============= DASHBOARD ============= -->
+  <section id="view-dashboard" class="view active">
+    <div class="dashboard">
+      <div class="logo-section">
+        <div class="logo-icon">
+          <span class="logo-x">X</span>
+          <span class="logo-o">O</span>
+        </div>
+        <h1 class="logo-title">Tic Tac Toe</h1>
+        <p class="logo-subtitle">Challenge your friends or test your skills against the AI</p>
+      </div>
+
+      <div class="mode-cards">
+        <button class="mode-card" id="btn-play-bot" data-mode="bot">
+          <div class="mode-icon">🤖</div>
+          <h2>vs Bot</h2>
+          <p>Challenge the AI at three difficulty levels</p>
+        </button>
+
+        <button class="mode-card" id="btn-play-local" data-mode="local">
+          <div class="mode-icon">👥</div>
+          <h2>Local 2P</h2>
+          <p>Play with a friend on this device</p>
+        </button>
+
+        <button class="mode-card" id="btn-play-online" data-mode="online">
+          <div class="mode-icon">🌐</div>
+          <h2>Online</h2>
+          <p>Play with a friend on another device</p>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= BOT DIFFICULTY ============= -->
+  <section id="view-difficulty" class="view">
+    <div class="panel">
+      <button class="back-btn" id="btn-back-diff">← Back</button>
+      <h2 class="panel-title">Choose Difficulty</h2>
+      <div class="difficulty-cards">
+        <button class="diff-card easy" id="btn-easy" data-diff="easy">
+          <span class="diff-emoji">😊</span>
+          <span class="diff-label">Easy</span>
+          <span class="diff-desc">Random moves</span>
+        </button>
+        <button class="diff-card medium" id="btn-medium" data-diff="medium">
+          <span class="diff-emoji">🤔</span>
+          <span class="diff-label">Medium</span>
+          <span class="diff-desc">Smart but beatable</span>
+        </button>
+        <button class="diff-card hard" id="btn-hard" data-diff="hard">
+          <span class="diff-emoji">😈</span>
+          <span class="diff-label">Hard</span>
+          <span class="diff-desc">Unbeatable AI</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= ONLINE LOBBY ============= -->
+  <section id="view-lobby" class="view">
+    <div class="panel">
+      <button class="back-btn" id="btn-back-lobby">← Back</button>
+      <h2 class="panel-title">Online Play</h2>
+
+      <div class="lobby-options">
+        <div class="lobby-card" id="lobby-create">
+          <h3>Create Room</h3>
+          <input type="text" id="input-name-create" class="text-input" placeholder="Your name" maxlength="15" />
+          <button class="primary-btn" id="btn-create-room">Create Private Room</button>
+        </div>
+
+        <div class="lobby-divider"><span>or</span></div>
+
+        <div class="lobby-card" id="lobby-join">
+          <h3>Join Room</h3>
+          <input type="text" id="input-name-join" class="text-input" placeholder="Your name" maxlength="15" />
+          <input type="text" id="input-room-code" class="text-input code-input" placeholder="Room Code" maxlength="6" />
+          <button class="primary-btn" id="btn-join-room">Join Room</button>
+          <p class="error-msg" id="join-error"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= WAITING ROOM ============= -->
+  <section id="view-waiting" class="view">
+    <div class="panel waiting-panel">
+      <h2 class="panel-title">Waiting for Opponent</h2>
+      <div class="room-code-display">
+        <p>Share this code with your friend:</p>
+        <div class="code-box">
+          <span id="display-room-code">------</span>
+          <button class="copy-btn" id="btn-copy-code" title="Copy code">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          </button>
+        </div>
+        <div class="waiting-spinner">
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <button class="secondary-btn" id="btn-cancel-wait">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ============= GAME BOARD ============= -->
+  <section id="view-game" class="view">
+    <div class="game-container">
+      <div class="game-header">
+        <button class="back-btn" id="btn-back-game">← Leave</button>
+        <div class="game-info">
+          <div class="player-indicator" id="player-x">
+            <span class="indicator-symbol x-color">X</span>
+            <span class="indicator-name" id="name-x">Player 1</span>
+          </div>
+          <div class="turn-display">
+            <span id="turn-text">X's turn</span>
+          </div>
+          <div class="player-indicator" id="player-o">
+            <span class="indicator-name" id="name-o">Player 2</span>
+            <span class="indicator-symbol o-color">O</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="score-board">
+        <div class="score x-score">
+          <span class="score-label">X</span>
+          <span class="score-value" id="score-x">0</span>
+        </div>
+        <div class="score draw-score">
+          <span class="score-label">Draw</span>
+          <span class="score-value" id="score-draw">0</span>
+        </div>
+        <div class="score o-score">
+          <span class="score-label">O</span>
+          <span class="score-value" id="score-o">0</span>
+        </div>
+      </div>
+
+      <div class="board-area">
+        <div class="board" id="game-board">
+          <button class="cell" data-index="0"></button>
+          <button class="cell" data-index="1"></button>
+          <button class="cell" data-index="2"></button>
+          <button class="cell" data-index="3"></button>
+          <button class="cell" data-index="4"></button>
+          <button class="cell" data-index="5"></button>
+          <button class="cell" data-index="6"></button>
+          <button class="cell" data-index="7"></button>
+          <button class="cell" data-index="8"></button>
+        </div>
+
+        <div class="game-result" id="game-result">
+          <p class="result-text" id="result-text">X Wins!</p>
+          <div class="result-actions">
+            <button class="primary-btn" id="btn-rematch">Rematch</button>
+            <button class="secondary-btn" id="btn-home">Home</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= TOAST ============= -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
