@@ -239,7 +239,9 @@ function setupSocketHandlers() {
       if (p.symbol === 'X') nameX.innerText = p.name;
       if (p.symbol === 'O') nameO.innerText = p.name;
     });
-    scores = { X: 0, draw: 0, O: 0 }; // Reset scores for new matchup
+    if (!state.isRematch) {
+      scores = { X: 0, draw: 0, O: 0 }; // Reset scores only for new matchup
+    }
     updateScoreUI();
     
     board = state.board;

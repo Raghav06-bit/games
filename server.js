@@ -146,7 +146,8 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('game-start', {
         players: room.players.map(p => ({ name: p.name, symbol: p.symbol })),
         board: room.board,
-        currentTurn: room.currentTurn
+        currentTurn: room.currentTurn,
+        isRematch: true
       });
     } else {
       // Notify opponent that rematch was requested
