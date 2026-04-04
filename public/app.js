@@ -1,7 +1,14 @@
-// ============= STATE =============
 let socket = null;
 let currentMode = null; // 'bot', 'local', 'online'
 let botDifficulty = null; // 'easy', 'medium', 'hard'
+
+let activeGame = 'xo';
+let targetDigitLength = 6;
+let guessSecret1 = null;
+let guessSecret2 = null;
+let localGuessTurn = 1;
+let guessRounds1 = 0;
+let guessRounds2 = 0;
 
 let board = Array(9).fill(null);
 let currentTurn = 'X'; // 'X' or 'O'
@@ -15,6 +22,10 @@ let scores = { X: 0, draw: 0, O: 0 };
 // ============= DOM ELEMENTS =============
 // Views
 const views = {
+  selectGame: document.getElementById('view-select-game'),
+  digitLength: document.getElementById('view-digit-length'),
+  guessSetup: document.getElementById('view-guess-setup'),
+  guessPlay: document.getElementById('view-guess-play'),
   dashboard: document.getElementById('view-dashboard'),
   difficulty: document.getElementById('view-difficulty'),
   lobby: document.getElementById('view-lobby'),
@@ -79,6 +90,33 @@ document.getElementById('btn-back-game').addEventListener('click', () => {
   }
   switchView('dashboard');
 });
+document.getElementById('btn-back-digits').addEventListener('click', () => switchView('dashboard'));
+document.getElementById('btn-back-guess').addEventListener('click', () => {
+  if (currentMode === 'online' && socket) { socket.disconnect(); socket = null; }
+  switchView('dashboard');
+});
+
+document.getElementById('btn-game-xo').addEventListener('click', () => {
+  activeGame = 'xo';
+  document.getElementById('dash-logo-title').innerText = 'Tic Tac Toe';
+  document.getElementById('dash-logo-title').className = 'logo-title';
+  document.getElementById('dash-logo-subtitle').innerText = 'Challenge your friends or test your skills against the AI';
+  document.getElementById('btn-play-bot').style.display = 'grid';
+  document.querySelector('#view-dashboard .logo-icon').style.display = 'flex';
+  document.querySelector('#view-dashboard .logo-icon').innerHTML = '<span class="logo-x">X</span><span class="logo-o">O</span>';
+  switchView('dashboard');
+});
+
+document.getElementById('btn-game-guess').addEventListener('click', () => {
+  activeGame = 'guess';
+  document.getElementById('dash-logo-title').innerHTML = '<span class="logo-x">Number </span><span class="logo-o">Guessing</span>';
+  document.getElementById('dash-logo-subtitle').innerText = 'Race to guess the hidden sequence';
+  document.getElementById('btn-play-bot').style.display = 'none';
+  document.querySelector('#view-dashboard .logo-icon').style.display = 'flex';
+  document.querySelector('#view-dashboard .logo-icon').innerHTML = '<span class="logo-o" style="font-size:5rem;">?</span>';
+  switchView('dashboard');
+});
+document.getElementById('btn-back-to-select').addEventListener('click', () => switchView('selectGame'));
 
 // ============= DASHBOARD LOGIC =============
 btnBot.addEventListener('click', () => {
@@ -88,12 +126,21 @@ btnBot.addEventListener('click', () => {
 
 btnLocal.addEventListener('click', () => {
   currentMode = 'local';
-  startLocalGame();
+  if (activeGame === 'guess') {
+    switchView('digitLength');
+  } else {
+    startLocalGame();
+  }
 });
 
 btnOnline.addEventListener('click', () => {
   currentMode = 'online';
   initSocket();
+  if (activeGame === 'guess') {
+    document.getElementById('lobby-digit-container').style.display = 'block';
+  } else {
+    document.getElementById('lobby-digit-container').style.display = 'none';
+  }
   switchView('lobby');
 });
 
@@ -224,9 +271,11 @@ function setupSocketHandlers() {
     switchView('waiting');
   });
 
-  socket.on('room-joined', ({ roomCode, symbol }) => {
+  socket.on('room-joined', ({ roomCode, symbol, gameType, digitLength }) => {
     onlineRoomCode = roomCode;
     mySymbol = symbol;
+    if (gameType) activeGame = gameType;
+    if (digitLength) targetDigitLength = digitLength;
     document.getElementById('join-error').innerText = '';
   });
 
@@ -239,6 +288,40 @@ function setupSocketHandlers() {
       if (p.symbol === 'X') nameX.innerText = p.name;
       if (p.symbol === 'O') nameO.innerText = p.name;
     });
+
+    if (state.gameType === 'guess') {
+      targetDigitLength = state.digitLength;
+      
+      const placeholderText = '0'.repeat(targetDigitLength);
+      document.getElementById('input-secret-number').placeholder = placeholderText;
+      document.getElementById('input-guess-number').placeholder = placeholderText;
+      document.getElementById('setup-title').innerText = 'Set Your Number';
+
+      guessSecret1 = null;
+      guessSecret2 = null;
+      document.getElementById('input-secret-number').value = '';
+      document.getElementById('input-secret-number').maxLength = targetDigitLength;
+      document.getElementById('setup-error').innerText = '';
+      document.getElementById('setup-waiting').style.display = 'none';
+      switchView('guessSetup');
+      
+      socket.on('guess-start', () => {
+        isGameActive = true;
+        startGuessPlayOnline();
+      });
+      socket.on('guess-result', ({ guess, status }) => {
+        addGuessHistory(mySymbol === 'X' ? 1 : 2, guess, status);
+      });
+      socket.on('opponent-guessed', ({ guess, status }) => {
+        addGuessHistory(mySymbol === 'X' ? 2 : 1, guess, status);
+      });
+      socket.on('guess-win', ({ winnerId, number }) => {
+        isGameActive = false;
+        let winner = (winnerId === socket.id) ? 'You' : 'Opponent';
+        showGuessResult(winner + ' won! Sequence was ' + number);
+      });
+      return;
+    }
     if (!state.isRematch) {
       scores = { X: 0, draw: 0, O: 0 }; // Reset scores only for new matchup
     }
@@ -284,7 +367,7 @@ function setupSocketHandlers() {
 
 btnCreateRoom.addEventListener('click', () => {
   const name = inputCreateName.value.trim() || 'Player 1';
-  socket.emit('create-room', name);
+  socket.emit('create-room', { playerName: name, gameType: activeGame, digitLength: targetDigitLength });
 });
 
 btnJoinRoom.addEventListener('click', () => {
@@ -481,6 +564,213 @@ btnHome.addEventListener('click', () => {
   if (currentMode === 'online' && socket) {
     socket.disconnect();
     socket = null;
+  }
+  switchView('dashboard');
+});
+
+// ============= NUMBER GUESSING LOGIC =============
+
+const digitSlider = document.getElementById('digit-slider');
+const digitDisplayVal = document.getElementById('digit-display-val');
+
+digitSlider.addEventListener('input', (e) => {
+  targetDigitLength = Math.round(parseFloat(e.target.value));
+  digitDisplayVal.innerText = targetDigitLength + ' Digits';
+  
+  // Update placeholders
+  const placeholderText = '0'.repeat(targetDigitLength);
+  document.getElementById('input-secret-number').placeholder = placeholderText;
+  document.getElementById('input-guess-number').placeholder = placeholderText;
+});
+
+document.getElementById('btn-confirm-digits').addEventListener('click', () => {
+  startLocalGuessGame();
+});
+
+const lobbyDigitSlider = document.getElementById('lobby-digit-slider');
+const lobbyDigitDisplay = document.getElementById('lobby-digit-display');
+
+lobbyDigitSlider.addEventListener('input', (e) => {
+  targetDigitLength = Math.round(parseFloat(e.target.value));
+  lobbyDigitDisplay.innerText = targetDigitLength + ' Digits';
+  
+  // Update placeholders
+  const placeholderText = '0'.repeat(targetDigitLength);
+  document.getElementById('input-secret-number').placeholder = placeholderText;
+  document.getElementById('input-guess-number').placeholder = placeholderText;
+});
+
+
+const setupInput = document.getElementById('input-secret-number');
+setupInput.addEventListener('input', (e) => {
+  let val = e.target.value.replace(/\D/g, '').substring(0, targetDigitLength);
+  e.target.value = val;
+  if (val.length === targetDigitLength) {
+    submitSecretNumber(val);
+  }
+});
+
+function startLocalGuessGame() {
+  guessSecret1 = null;
+  guessSecret2 = null;
+  localGuessTurn = 1;
+  document.getElementById('setup-title').innerText = 'Player 1: Set Number';
+  setupInput.value = '';
+  setupInput.maxLength = targetDigitLength;
+  document.getElementById('setup-waiting').style.display = 'none';
+  switchView('guessSetup');
+}
+
+function submitSecretNumber(val) {
+  if (currentMode === 'online') {
+    document.getElementById('setup-waiting').style.display = 'flex';
+    setupInput.blur();
+    socket.emit('setup-secret-number', { roomCode: onlineRoomCode, number: val });
+  } else {
+    // Local flow
+    if (localGuessTurn === 1) {
+      guessSecret1 = val;
+      localGuessTurn = 2;
+      document.getElementById('setup-title').innerText = 'Player 2: Set Number';
+      setupInput.value = '';
+      setupInput.focus();
+    } else {
+      guessSecret2 = val;
+      startGuessPlayLocal();
+    }
+  }
+}
+
+const guessInput = document.getElementById('input-guess-number');
+guessInput.addEventListener('input', (e) => {
+  let val = e.target.value.replace(/\D/g, '').substring(0, targetDigitLength);
+  e.target.value = val;
+  if (val.length === targetDigitLength) {
+    setTimeout(() => makeGuess(val), 50); // slight delay to show last digit
+  }
+});
+
+function startGuessPlayLocal() {
+  guessRounds1 = 0;
+  guessRounds2 = 0;
+  localGuessTurn = 1;
+  isGameActive = true;
+  document.getElementById('list-p1').innerHTML = '';
+  document.getElementById('list-p2').innerHTML = '';
+  document.getElementById('guess-game-result').style.display = 'none';
+  document.querySelector('.guess-input-panel .guess-input-container').style.display = 'block';
+  
+  document.querySelector('#history-p1 h3').innerText = 'Player 1 History';
+  document.querySelector('#history-p2 h3').innerText = 'Player 2 History';
+  document.getElementById('guess-name-1').innerText = 'Player 1';
+  document.getElementById('guess-name-2').innerText = 'Player 2';
+  
+  document.getElementById('guess-rounds-1').style.display = 'inline';
+  document.getElementById('guess-rounds-2').style.display = 'inline';
+
+  updateLocalGuessTurnUI();
+  guessInput.value = '';
+  guessInput.maxLength = targetDigitLength;
+  switchView('guessPlay');
+}
+
+function startGuessPlayOnline() {
+  document.getElementById('list-p1').innerHTML = '';
+  document.getElementById('list-p2').innerHTML = '';
+  document.getElementById('guess-game-result').style.display = 'none';
+  document.querySelector('.guess-input-panel .guess-input-container').style.display = 'block';
+  document.getElementById('guess-turn-text').innerText = 'Simultaneous Play';
+  
+  document.querySelector('#history-p1 h3').innerText = nameX.innerText + ' History';
+  document.querySelector('#history-p2 h3').innerText = nameO.innerText + ' History';
+  document.getElementById('guess-name-1').innerText = nameX.innerText;
+  document.getElementById('guess-name-2').innerText = nameO.innerText;
+  
+  document.getElementById('guess-rounds-1').style.display = 'none';
+  document.getElementById('guess-rounds-2').style.display = 'none';
+  
+  document.getElementById('guess-player-1').style.opacity = '1';
+  document.getElementById('guess-player-2').style.opacity = '1';
+  document.getElementById('guess-name-1').classList.remove('text-glow-white-1');
+  document.getElementById('guess-name-2').classList.remove('text-glow-white-2');
+
+  guessInput.value = '';
+  guessInput.maxLength = targetDigitLength;
+  switchView('guessPlay');
+}
+
+function updateLocalGuessTurnUI() {
+  document.getElementById('guess-player-1').style.opacity = '1';
+  document.getElementById('guess-player-2').style.opacity = '1';
+  document.getElementById('guess-name-1').classList.toggle('text-glow-white-1', localGuessTurn === 1);
+  document.getElementById('guess-name-2').classList.toggle('text-glow-white-2', localGuessTurn === 2);
+  
+  document.getElementById('guess-turn-text').innerText = `Player ${localGuessTurn}'s Turn`;
+  document.getElementById('guess-rounds-1').innerText = 'Rounds: ' + guessRounds1;
+  document.getElementById('guess-rounds-2').innerText = 'Rounds: ' + guessRounds2;
+}
+
+function makeGuess(guess) {
+  if (!isGameActive) return;
+  guessInput.value = '';
+  
+  if (currentMode === 'online') {
+    socket.emit('make-num-guess', { roomCode: onlineRoomCode, guess: guess });
+  } else {
+    // Local
+    let target = (localGuessTurn === 1) ? guessSecret2 : guessSecret1;
+    if (localGuessTurn === 1) guessRounds1++; else guessRounds2++;
+    
+    if (guess === target) {
+      isGameActive = false;
+      showGuessResult(`Player ${localGuessTurn} Wins in ${localGuessTurn === 1 ? guessRounds1 : guessRounds2} rounds!`);
+    } else {
+      let pGuess = parseInt(guess, 10);
+      let pTarget = parseInt(target, 10);
+      let status = pGuess < pTarget ? 'HIGHER' : 'LOWER';
+      addGuessHistory(localGuessTurn, guess, status);
+      
+      // Toggle Turn
+      localGuessTurn = localGuessTurn === 1 ? 2 : 1;
+      updateLocalGuessTurnUI();
+    }
+  }
+}
+
+function addGuessHistory(playerNum, guess, status) {
+  const ul = document.getElementById('list-p' + playerNum);
+  const li = document.createElement('li');
+  li.className = 'history-item';
+  const span1 = document.createElement('span');
+  span1.innerText = guess;
+  const span2 = document.createElement('span');
+  span2.className = 'badge ' + (status === 'HIGHER' || status === 'HIGH' ? 'badge-high' : 'badge-less');
+  span2.innerText = status;
+  li.appendChild(span1);
+  li.appendChild(span2);
+  ul.appendChild(li);
+  ul.scrollTop = ul.scrollHeight;
+}
+
+function showGuessResult(text) {
+  document.querySelector('.guess-input-panel .guess-input-container').style.display = 'none';
+  document.getElementById('guess-game-result').style.display = 'flex';
+  document.getElementById('guess-result-text').innerText = text;
+}
+
+document.getElementById('btn-guess-rematch').addEventListener('click', () => {
+  if (currentMode === 'online') {
+    socket.emit('request-rematch', onlineRoomCode);
+    document.getElementById('btn-guess-rematch').innerText = 'Sent...';
+    setTimeout(() => { document.getElementById('btn-guess-rematch').innerText = 'Rematch'; }, 3000);
+  } else {
+    startLocalGuessGame();
+  }
+});
+document.getElementById('btn-guess-home').addEventListener('click', () => {
+  if (currentMode === 'online' && socket) {
+      socket.disconnect();
+      socket = null;
   }
   switchView('dashboard');
 });

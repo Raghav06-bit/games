@@ -49,22 +49,32 @@ io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
 
   // Create a new room
-  socket.on('create-room', (playerName) => {
+  socket.on('create-room', (data) => {
+    // Legacy support for XO string payload or new object payload
+    const playerName = typeof data === 'string' ? data : data.playerName;
+    const gameType = typeof data === 'string' ? 'xo' : data.gameType;
+    const digitLength = typeof data === 'string' ? 6 : data.digitLength;
+
     const roomCode = generateRoomCode();
     const room = {
       code: roomCode,
+      gameType: gameType,
+      digitLength: digitLength,
       players: [{ id: socket.id, name: playerName || 'Player 1', symbol: 'X' }],
       board: Array(9).fill(null),
       startingTurn: 'X',
       currentTurn: 'X',
       gameActive: false,
-      rematchRequests: new Set()
+      rematchRequests: new Set(),
+      // Number guessing specific state
+      secretNumbers: {},
+      readyPlayers: new Set()
     };
     rooms.set(roomCode, room);
     socket.join(roomCode);
     socket.roomCode = roomCode;
-    socket.emit('room-created', { roomCode, symbol: 'X' });
-    console.log(`Room ${roomCode} created by ${playerName}`);
+    socket.emit('room-created', { roomCode, symbol: 'X', gameType, digitLength });
+    console.log(`Room ${roomCode} created by ${playerName} for ${gameType}`);
   });
 
   // Join an existing room
@@ -86,22 +96,24 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.roomCode = code;
 
-    socket.emit('room-joined', { roomCode: code, symbol: 'O' });
+    socket.emit('room-joined', { roomCode: code, symbol: 'O', gameType: room.gameType, digitLength: room.digitLength });
 
     // Notify both players the game is starting
     io.to(code).emit('game-start', {
-      players: room.players.map(p => ({ name: p.name, symbol: p.symbol })),
+      players: room.players.map(p => ({ name: p.name, symbol: p.symbol, id: p.id })),
       board: room.board,
-      currentTurn: room.currentTurn
+      currentTurn: room.currentTurn,
+      gameType: room.gameType,
+      digitLength: room.digitLength
     });
 
     console.log(`${playerName} joined room ${code}`);
   });
 
-  // Handle a move
+  // Handle a move (XO)
   socket.on('make-move', ({ roomCode, index }) => {
     const room = rooms.get(roomCode);
-    if (!room || !room.gameActive) return;
+    if (!room || !room.gameActive || room.gameType !== 'xo') return;
 
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
@@ -128,6 +140,45 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---------- Number Guessing Specific Events ----------
+  socket.on('setup-secret-number', ({ roomCode, number }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.gameType !== 'guess') return;
+
+    room.secretNumbers[socket.id] = number;
+    room.readyPlayers.add(socket.id);
+
+    if (room.readyPlayers.size === 2) {
+      room.gameActive = true;
+      io.to(roomCode).emit('guess-start');
+    } else {
+      socket.to(roomCode).emit('opponent-ready');
+    }
+  });
+
+  socket.on('make-num-guess', ({ roomCode, guess }) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameActive || room.gameType !== 'guess') return;
+    
+    const opponent = room.players.find(p => p.id !== socket.id);
+    if (!opponent) return;
+    const opponentSecret = room.secretNumbers[opponent.id];
+    if (!opponentSecret) return;
+
+    if (guess === opponentSecret) {
+      room.gameActive = false;
+      io.to(roomCode).emit('guess-win', { winnerId: socket.id, number: opponentSecret });
+    } else {
+      const pGuess = parseInt(guess, 10);
+      const pSecret = parseInt(opponentSecret, 10);
+      const status = pGuess < pSecret ? 'HIGHER' : 'LOWER';
+      
+      socket.emit('guess-result', { guess, status, fromId: socket.id });
+      socket.to(roomCode).emit('opponent-guessed', { guess, status, fromId: socket.id });
+    }
+  });
+
+
   // Rematch request
   socket.on('request-rematch', (roomCode) => {
     const room = rooms.get(roomCode);
@@ -140,13 +191,23 @@ io.on('connection', (socket) => {
       room.board = Array(9).fill(null);
       room.startingTurn = room.startingTurn === 'X' ? 'O' : 'X';
       room.currentTurn = room.startingTurn;
-      room.gameActive = true;
+      room.secretNumbers = {};
+      room.readyPlayers = new Set();
       room.rematchRequests.clear();
 
+      if (room.gameType === 'xo') {
+        room.gameActive = true;
+      } else {
+        // For guess game, they need to setup numbers again
+        room.gameActive = false;
+      }
+
       io.to(roomCode).emit('game-start', {
-        players: room.players.map(p => ({ name: p.name, symbol: p.symbol })),
+        players: room.players.map(p => ({ name: p.name, symbol: p.symbol, id: p.id })),
         board: room.board,
         currentTurn: room.currentTurn,
+        gameType: room.gameType,
+        digitLength: room.digitLength,
         isRematch: true
       });
     } else {

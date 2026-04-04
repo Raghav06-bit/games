@@ -12,19 +12,47 @@
 </head>
 <body>
 
+  <!-- ============= SELECT GAME ============= -->
+  <section id="view-select-game" class="view active">
+    <div class="dashboard">
+      <div class="logo-section">
+        <h1 class="logo-title"><span class="logo-x">Arc</span><span class="logo-o">ade</span></h1>
+        <p class="logo-subtitle">Choose your mini-game</p>
+      </div>
+
+      <div class="mode-cards">
+        <button class="mode-card" id="btn-game-xo">
+          <div class="mode-icon">
+            <span class="logo-x" style="font-size:1.5rem">X</span>
+            <span class="logo-o" style="font-size:1.5rem">O</span>
+          </div>
+          <h2>Tic-Tac-Toe</h2>
+          <p>Classic 3x3 strategy game</p>
+        </button>
+
+        <button class="mode-card" id="btn-game-guess">
+          <div class="mode-icon" style="font-size: 1.5rem; color: var(--neon-cyan); font-weight:700">?</div>
+          <h2>Number Guessing</h2>
+          <p>Race to guess the hidden sequence</p>
+        </button>
+      </div>
+    </div>
+  </section>
+
   <!-- ============= DASHBOARD ============= -->
-  <section id="view-dashboard" class="view active">
+  <section id="view-dashboard" class="view">
     <div class="dashboard">
       <div class="logo-section">
         <div class="logo-icon">
           <span class="logo-x">X</span>
           <span class="logo-o">O</span>
         </div>
-        <h1 class="logo-title">Tic Tac Toe</h1>
-        <p class="logo-subtitle">Challenge your friends or test your skills against the AI</p>
+        <h1 class="logo-title" id="dash-logo-title">Tic Tac Toe</h1>
+        <p class="logo-subtitle" id="dash-logo-subtitle">Challenge your friends or test your skills against the AI</p>
       </div>
 
       <div class="mode-cards">
+        <button class="back-btn" id="btn-back-to-select" style="margin-bottom:0;">← Change Game</button>
         <button class="mode-card" id="btn-play-bot" data-mode="bot">
           <div class="mode-icon">🤖</div>
           <h2>vs Bot</h2>
@@ -81,6 +109,13 @@
         <div class="lobby-card" id="lobby-create">
           <h3>Create Room</h3>
           <input type="text" id="input-name-create" class="text-input" placeholder="Your name" maxlength="15" />
+          
+          <div id="lobby-digit-container" style="display:none; margin-bottom:15px; text-align:center;">
+             <p style="margin-bottom:5px; color:var(--text-muted); font-size:0.9rem;">Number of Digits:</p>
+             <input type="range" id="lobby-digit-slider" min="2" max="8" value="6" step="0.01" style="width:100%; accent-color:var(--neon-cyan);">
+             <div class="digit-display" id="lobby-digit-display" style="font-size:1.2rem; margin-top:5px;">6 Digits</div>
+          </div>
+
           <button class="primary-btn" id="btn-create-room">Create Private Room</button>
         </div>
 
@@ -114,6 +149,90 @@
         </div>
       </div>
       <button class="secondary-btn" id="btn-cancel-wait">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ============= DIGIT LENGTH ============= -->
+  <section id="view-digit-length" class="view">
+    <div class="panel">
+      <button class="back-btn" id="btn-back-digits">← Back</button>
+      <h2 class="panel-title">Select Number of Digits</h2>
+      <div class="mode-cards">
+        <div class="digit-selector">
+           <input type="range" id="digit-slider" min="2" max="8" value="6" step="0.01">
+           <div class="digit-display" id="digit-display-val">6 Digits</div>
+        </div>
+        <button class="primary-btn" id="btn-confirm-digits">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= GUESS SETUP ============= -->
+  <section id="view-guess-setup" class="view">
+    <div class="panel waiting-panel">
+      <h2 class="panel-title" id="setup-title">Set Your Number</h2>
+      <p class="logo-subtitle" id="setup-subtitle">Enter your secret sequence. Opponent won't see it.</p>
+      
+      <div class="guess-input-container">
+        <input type="text" id="input-secret-number" class="text-input code-input secret-input" placeholder="000000" inputmode="numeric" />
+        <p class="error-msg" id="setup-error"></p>
+      </div>
+      <div class="waiting-spinner" id="setup-waiting" style="display:none; margin-top: 20px;">
+        <p>Waiting for opponent...</p>
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= GUESS PLAY ============= -->
+  <section id="view-guess-play" class="view">
+    <div class="game-container guess-play-container">
+      <div class="game-header">
+        <button class="back-btn" id="btn-back-guess">← Leave</button>
+        <div class="game-info">
+          <div class="player-indicator" id="guess-player-1">
+            <span class="indicator-name" id="guess-name-1">Player 1</span>
+            <span class="score-label" id="guess-rounds-1">Rounds: 0</span>
+          </div>
+          <div class="turn-display">
+            <span id="guess-turn-text">Your Turn</span>
+          </div>
+          <div class="player-indicator" id="guess-player-2">
+            <span class="indicator-name" id="guess-name-2">Player 2</span>
+            <span class="score-label" id="guess-rounds-2">Rounds: 0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-area guess-board-area">
+        <!-- History Section for P1 -->
+        <div class="guess-history" id="history-p1">
+           <h3>P1 History</h3>
+           <ul class="history-list" id="list-p1"></ul>
+        </div>
+
+        <!-- Input Section -->
+        <div class="guess-input-panel">
+           <h2 id="guess-prompt">Enter your guess</h2>
+           <div class="guess-input-container">
+             <input type="text" id="input-guess-number" class="text-input code-input" placeholder="000000" inputmode="numeric" />
+           </div>
+           
+           <div class="game-result" id="guess-game-result" style="display:none; margin-top:20px;">
+             <p class="result-text" id="guess-result-text">You Win!</p>
+             <div class="result-actions">
+               <button class="primary-btn" id="btn-guess-rematch">Rematch</button>
+               <button class="secondary-btn" id="btn-guess-home">Home</button>
+             </div>
+           </div>
+        </div>
+
+        <!-- History Section for P2 -->
+        <div class="guess-history" id="history-p2">
+           <h3>P2 History</h3>
+           <ul class="history-list" id="list-p2"></ul>
+        </div>
+      </div>
     </div>
   </section>
 
