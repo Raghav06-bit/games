@@ -305,21 +305,6 @@ function setupSocketHandlers() {
       document.getElementById('setup-waiting').style.display = 'none';
       switchView('guessSetup');
       
-      socket.on('guess-start', () => {
-        isGameActive = true;
-        startGuessPlayOnline();
-      });
-      socket.on('guess-result', ({ guess, status }) => {
-        addGuessHistory(mySymbol === 'X' ? 1 : 2, guess, status);
-      });
-      socket.on('opponent-guessed', ({ guess, status }) => {
-        addGuessHistory(mySymbol === 'X' ? 2 : 1, guess, status);
-      });
-      socket.on('guess-win', ({ winnerId, number }) => {
-        isGameActive = false;
-        let winner = (winnerId === socket.id) ? 'You' : 'Opponent';
-        showGuessResult(winner + ' won! Sequence was ' + number);
-      });
       return;
     }
     if (!state.isRematch) {
@@ -362,6 +347,24 @@ function setupSocketHandlers() {
       socket = null;
       switchView('dashboard');
     }, 2000);
+  });
+
+  socket.on('guess-start', () => {
+    isGameActive = true;
+    startGuessPlayOnline();
+  });
+  socket.on('guess-result', ({ guess, status }) => {
+    addGuessHistory(mySymbol === 'X' ? 1 : 2, guess, status);
+  });
+  socket.on('opponent-guessed', ({ guess, status }) => {
+    addGuessHistory(mySymbol === 'X' ? 2 : 1, guess, status);
+  });
+  socket.on('guess-win', ({ winnerId, winnerSecret, loserSecret }) => {
+    isGameActive = false;
+    let isMeWinner = (winnerId === socket.id);
+    let winnerText = isMeWinner ? 'You' : 'Opponent';
+    let displaySequence = isMeWinner ? loserSecret : winnerSecret;
+    showGuessResult(winnerText + ' won! Their sequence was ' + displaySequence);
   });
 }
 

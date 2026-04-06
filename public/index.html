@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-32VYESGV5C"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-32VYESGV5C');
+  </script>
 </head>
 <body>
 
@@ -174,7 +182,7 @@
       <p class="logo-subtitle" id="setup-subtitle">Enter your secret sequence. Opponent won't see it.</p>
       
       <div class="guess-input-container">
-        <input type="text" id="input-secret-number" class="text-input code-input secret-input" placeholder="000000" inputmode="numeric" />
+        <input type="password" id="input-secret-number" class="text-input code-input secret-input" placeholder="000000" inputmode="numeric" />
         <p class="error-msg" id="setup-error"></p>
       </div>
       <div class="waiting-spinner" id="setup-waiting" style="display:none; margin-top: 20px;">

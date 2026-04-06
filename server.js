@@ -167,7 +167,8 @@ io.on('connection', (socket) => {
 
     if (guess === opponentSecret) {
       room.gameActive = false;
-      io.to(roomCode).emit('guess-win', { winnerId: socket.id, number: opponentSecret });
+      const winnerSecret = room.secretNumbers[socket.id];
+      io.to(roomCode).emit('guess-win', { winnerId: socket.id, winnerSecret: winnerSecret, loserSecret: opponentSecret });
     } else {
       const pGuess = parseInt(guess, 10);
       const pSecret = parseInt(opponentSecret, 10);
